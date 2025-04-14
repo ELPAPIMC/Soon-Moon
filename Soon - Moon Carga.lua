@@ -4,7 +4,7 @@ local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shle
 -- IDs de los juegos soportados (necesito los reales)
 local Games = {
     BladeBall = 13772394625, -- Ejemplo, confirmar ID real
-    Fiish = 999999999,       -- Placeholder, necesito el ID real
+    Fiish = 16732694052,       -- Placeholder, necesito el ID real
 }
 
 -- Función para cargar scripts desde una URL
