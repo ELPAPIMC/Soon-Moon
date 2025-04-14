@@ -23,7 +23,7 @@ end
 -- Detectar el juego actual
 local currentGameId = game.PlaceId
 if currentGameId == Games.BladeBall then
-    loadingame("https://raw.githubusercontent.com/ELPAPIMC/Soon-Moon/BladeBall.lua")
+    loadingame("https://raw.githubusercontent.com/ELPAPIMC/Soon-Moon/refs/heads/main/BladeBall.lua")
 elseif currentGameId == Games.Fiish then
     loadingame("https://raw.githubusercontent.com/ELPAPIMC/Soon-Moon/refs/heads/main/Fiish.lua")
 else
