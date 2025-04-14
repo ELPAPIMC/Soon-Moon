@@ -23,11 +23,11 @@ end
 -- Detectar el juego actual
 local currentGameId = game.PlaceId
 if currentGameId == Games.BladeBall then
-    loadingame("https://raw.githubusercontent.com/WIKINDLEY/Soon-Moon/main/BladeBall.lua")
+    loadingame("https://raw.githubusercontent.com/ELPAPIMC/Soon-Moon/BladeBall.lua")
 elseif currentGameId == Games.Fiish then
-    loadingame("https://raw.githubusercontent.com/WIKINDLEY/Soon-Moon/main/Fiish.lua")
+    loadingame("https://raw.githubusercontent.com/ELPAPIMC/Soon-Moon/Fiish.lua")
 else
-    loadingame("https://raw.githubusercontent.com/WIKINDLEY/Soon-Moon/main/Universal.lua")
+    loadingame("https://raw.githubusercontent.com/ELPAPIMC/Soon-Moon/Universal.lua")
 end
 
 -- Interfaz con Rayfield
