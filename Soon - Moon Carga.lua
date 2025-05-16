@@ -1,8 +1,10 @@
--- // Library // --
+-- // Library Mejorada // --
 local UILibrary = {}
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local TextService = game:GetService("TextService")
+local RunService = game:GetService("RunService")
 
 -- // Configuración // --
 local config = {
@@ -13,19 +15,213 @@ local config = {
     ToggleOnColor = Color3.fromRGB(0, 170, 255),
     ToggleOffColor = Color3.fromRGB(100, 100, 100),
     CornerRadius = UDim.new(0, 8),
-    SliderColor = Color3.fromRGB(0, 170, 255)
+    SliderColor = Color3.fromRGB(0, 170, 255),
+    NotificationBG = Color3.fromRGB(35, 35, 35),
+    NotificationSuccess = Color3.fromRGB(50, 205, 50),
+    NotificationError = Color3.fromRGB(255, 70, 70),
+    NotificationInfo = Color3.fromRGB(0, 170, 255),
+    NotificationWarning = Color3.fromRGB(255, 165, 0)
 }
 
+-- // Ranks con sus respectivos IDs y colores // --
+local Ranks = {
+    OWNER = {
+        Color = Color3.fromRGB(255, 0, 0),
+        ID = {123456789} -- IDs de propietarios (ejemplo)
+    },
+    ADMIN = {
+        Color = Color3.fromRGB(255, 80, 80),
+        ID = {987654321, 123123123} -- IDs de admins (ejemplo)
+    },
+    MOD = {
+        Color = Color3.fromRGB(0, 255, 127),
+        ID = {456456456} -- IDs de moderadores (ejemplo)
+    },
+    VIP = {
+        Color = Color3.fromRGB(255, 215, 0),
+        ID = {789789789} -- IDs de VIPs (ejemplo)
+    },
+    USER = {
+        Color = Color3.fromRGB(180, 180, 180),
+        ID = {} -- Todos los demás
+    }
+}
+
+-- // Sistema de Notificaciones // --
+local NotificationSystem = {}
+
+function NotificationSystem:Notify(title, message, icon, duration, notifType)
+    duration = duration or 3
+    notifType = notifType or "info"
+    
+    -- Colores según tipo de notificación
+    local notifColors = {
+        success = config.NotificationSuccess,
+        error = config.NotificationError,
+        info = config.NotificationInfo,
+        warning = config.NotificationWarning
+    }
+    
+    -- Obtener color del tipo de notificación
+    local notifColor = notifColors[notifType] or config.NotificationInfo
+    
+    -- Crear ScreenGui para la notificación
+    local NotifGui = Instance.new("ScreenGui")
+    NotifGui.Name = "Notification"
+    NotifGui.ResetOnSpawn = false
+    NotifGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Intentar poner la notificación en CoreGui
+    pcall(function()
+        NotifGui.Parent = game.CoreGui
+    end)
+    
+    -- Si falla, ponerla en PlayerGui
+    if NotifGui.Parent == nil then
+        NotifGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+    end
+    
+    -- Frame principal
+    local NotifFrame = Instance.new("Frame")
+    NotifFrame.Name = "NotificationFrame"
+    NotifFrame.Size = UDim2.new(0, 280, 0, 80)
+    NotifFrame.Position = UDim2.new(1, 300, 0.9, -85)
+    NotifFrame.BackgroundColor3 = config.NotificationBG
+    NotifFrame.BorderSizePixel = 0
+    NotifFrame.AnchorPoint = Vector2.new(1, 1)
+    NotifFrame.Parent = NotifGui
+    
+    -- Redondear el frame
+    local NotifCorner = Instance.new("UICorner")
+    NotifCorner.CornerRadius = UDim.new(0, 8)
+    NotifCorner.Parent = NotifFrame
+    
+    -- Barra de color según tipo
+    local ColorBar = Instance.new("Frame")
+    ColorBar.Name = "ColorBar"
+    ColorBar.Size = UDim2.new(0, 4, 1, 0)
+    ColorBar.BackgroundColor3 = notifColor
+    ColorBar.BorderSizePixel = 0
+    ColorBar.Parent = NotifFrame
+    
+    -- Redondear la barra de color (sólo esquinas izquierdas)
+    local ColorBarCorner = Instance.new("UICorner")
+    ColorBarCorner.CornerRadius = UDim.new(0, 8)
+    ColorBarCorner.Parent = ColorBar
+    
+    -- Arreglar las esquinas derechas de la barra
+    local ColorBarFix = Instance.new("Frame")
+    ColorBarFix.Name = "Fix"
+    ColorBarFix.Size = UDim2.new(0.5, 0, 1, 0)
+    ColorBarFix.Position = UDim2.new(0.5, 0, 0, 0)
+    ColorBarFix.BackgroundColor3 = notifColor
+    ColorBarFix.BorderSizePixel = 0
+    ColorBarFix.Parent = ColorBar
+    
+    -- Icono de la notificación
+    local NotifIcon = Instance.new("ImageLabel")
+    NotifIcon.Name = "Icon"
+    NotifIcon.Size = UDim2.new(0, 30, 0, 30)
+    NotifIcon.Position = UDim2.new(0, 15, 0, 25)
+    NotifIcon.BackgroundTransparency = 1
+    
+    -- Establecer icono según tipo si no se proporciona uno
+    if not icon or icon == "" then
+        if notifType == "success" then
+            NotifIcon.Image = "rbxassetid://6031094667" -- Ícono de verificación
+        elseif notifType == "error" then
+            NotifIcon.Image = "rbxassetid://6031094678" -- Ícono de error
+        elseif notifType == "warning" then
+            NotifIcon.Image = "rbxassetid://6031071057" -- Ícono de advertencia  
+        else -- info por defecto
+            NotifIcon.Image = "rbxassetid://6031068420" -- Ícono de información
+        end
+    else
+        NotifIcon.Image = icon
+    end
+    
+    NotifIcon.ImageColor3 = notifColor
+    NotifIcon.Parent = NotifFrame
+    
+    -- Título de la notificación
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Name = "Title"
+    TitleLabel.Size = UDim2.new(1, -65, 0, 25)
+    TitleLabel.Position = UDim2.new(0, 55, 0, 10)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = title
+    TitleLabel.TextColor3 = config.TextColor
+    TitleLabel.TextSize = 16
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.TextWrapped = true
+    TitleLabel.Parent = NotifFrame
+    
+    -- Mensaje de la notificación
+    local MessageLabel = Instance.new("TextLabel")
+    MessageLabel.Name = "Message"
+    MessageLabel.Size = UDim2.new(1, -65, 0, 40)
+    MessageLabel.Position = UDim2.new(0, 55, 0, 35)
+    MessageLabel.BackgroundTransparency = 1
+    MessageLabel.Text = message
+    MessageLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    MessageLabel.TextSize = 14
+    MessageLabel.Font = Enum.Font.Gotham
+    MessageLabel.TextXAlignment = Enum.TextXAlignment.Left
+    MessageLabel.TextWrapped = true
+    MessageLabel.Parent = NotifFrame
+    
+    -- Barra de progreso
+    local ProgressBar = Instance.new("Frame")
+    ProgressBar.Name = "ProgressBar"
+    ProgressBar.Size = UDim2.new(1, 0, 0, 3)
+    ProgressBar.Position = UDim2.new(0, 0, 1, -3)
+    ProgressBar.BackgroundColor3 = notifColor
+    ProgressBar.BorderSizePixel = 0
+    ProgressBar.Parent = NotifFrame
+    
+    -- Redondear barra de progreso
+    local ProgressCorner = Instance.new("UICorner")
+    ProgressCorner.CornerRadius = UDim.new(0, 8)
+    ProgressCorner.Parent = ProgressBar
+    
+    -- Animación de entrada
+    NotifFrame:TweenPosition(UDim2.new(1, -20, 0.9, -85), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.5, true)
+    
+    -- Animación de la barra de progreso
+    TweenService:Create(ProgressBar, TweenInfo.new(duration, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 0, 3)}):Play()
+    
+    -- Eliminar la notificación después del tiempo
+    task.delay(duration, function()
+        -- Animación de salida
+        local outTween = TweenService:Create(NotifFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(1, 300, 0.9, -85)})
+        outTween:Play()
+        outTween.Completed:Connect(function()
+            NotifGui:Destroy()
+        end)
+    end)
+end
+
 -- // Iniciar la GUI // --
-function UILibrary:Create(title)
+function UILibrary:Create(title, draggable)
     local GuiName = title or "UI Library"
+    draggable = draggable ~= nil and draggable or true
     
     -- Crear ScreenGui principal
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = GuiName
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    ScreenGui.Parent = game.CoreGui
+    
+    -- Intentar poner la UI en CoreGui
+    pcall(function()
+        ScreenGui.Parent = game.CoreGui
+    end)
+    
+    -- Si falla, ponerla en PlayerGui
+    if ScreenGui.Parent == nil then
+        ScreenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+    end
     
     -- Frame principal
     local MainFrame = Instance.new("Frame")
@@ -36,8 +232,22 @@ function UILibrary:Create(title)
     MainFrame.BackgroundColor3 = config.MainColor
     MainFrame.BorderSizePixel = 0
     MainFrame.Active = true
-    MainFrame.Draggable = true
     MainFrame.Parent = ScreenGui
+    
+    -- Efecto de sombra
+    local Shadow = Instance.new("ImageLabel")
+    Shadow.Name = "Shadow"
+    Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+    Shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Shadow.Size = UDim2.new(1, 40, 1, 40)
+    Shadow.BackgroundTransparency = 1
+    Shadow.Image = "rbxassetid://5554236805"
+    Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    Shadow.ImageTransparency = 0.6
+    Shadow.ScaleType = Enum.ScaleType.Slice
+    Shadow.SliceCenter = Rect.new(23, 23, 277, 277)
+    Shadow.ZIndex = 0
+    Shadow.Parent = MainFrame
     
     -- Redondear bordes del MainFrame
     local Corner = Instance.new("UICorner")
@@ -67,11 +277,21 @@ function UILibrary:Create(title)
     FixTitleBar.ZIndex = 0
     FixTitleBar.Parent = TitleBar
     
+    -- Ícono de la UI (opcional)
+    local TitleIcon = Instance.new("ImageLabel")
+    TitleIcon.Name = "Icon"
+    TitleIcon.Size = UDim2.new(0, 25, 0, 25)
+    TitleIcon.Position = UDim2.new(0, 10, 0, 7)
+    TitleIcon.BackgroundTransparency = 1
+    TitleIcon.Image = "rbxassetid://6031094678" -- Ícono por defecto, puedes cambiarlo
+    TitleIcon.ImageColor3 = config.TextColor
+    TitleIcon.Parent = TitleBar
+    
     -- Título texto
     local TitleText = Instance.new("TextLabel")
     TitleText.Name = "Title"
-    TitleText.Size = UDim2.new(1, -40, 1, 0)
-    TitleText.Position = UDim2.new(0, 10, 0, 0)
+    TitleText.Size = UDim2.new(1, -120, 1, 0)
+    TitleText.Position = UDim2.new(0, 45, 0, 0)
     TitleText.BackgroundTransparency = 1
     TitleText.Text = GuiName
     TitleText.TextColor3 = config.TextColor
@@ -79,6 +299,23 @@ function UILibrary:Create(title)
     TitleText.Font = Enum.Font.GothamBold
     TitleText.TextXAlignment = Enum.TextXAlignment.Left
     TitleText.Parent = TitleBar
+    
+    -- Minimizar botón
+    local MinimizeButton = Instance.new("TextButton")
+    MinimizeButton.Name = "MinimizeButton"
+    MinimizeButton.Size = UDim2.new(0, 30, 0, 30)
+    MinimizeButton.Position = UDim2.new(1, -75, 0, 5)
+    MinimizeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    MinimizeButton.Text = "-"
+    MinimizeButton.TextColor3 = config.TextColor
+    MinimizeButton.TextSize = 20
+    MinimizeButton.Font = Enum.Font.GothamBold
+    MinimizeButton.Parent = TitleBar
+    
+    -- Redondear el botón de minimizar
+    local MinimizeCorner = Instance.new("UICorner")
+    MinimizeCorner.CornerRadius = UDim.new(0, 6)
+    MinimizeCorner.Parent = MinimizeButton
     
     -- Botón de cierre
     local CloseButton = Instance.new("TextButton")
@@ -99,7 +336,36 @@ function UILibrary:Create(title)
     
     -- Evento para cerrar la GUI
     CloseButton.MouseButton1Click:Connect(function()
-        ScreenGui:Destroy()
+        -- Animación de cierre
+        local closeTween = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 0, 0, 0),
+            Position = UDim2.new(0.5, 0, 0.5, 0)
+        })
+        closeTween:Play()
+        closeTween.Completed:Connect(function()
+            ScreenGui:Destroy()
+        end)
+    end)
+    
+    -- Variable para controlar minimizado
+    local Minimized = false
+    local OriginalSize = MainFrame.Size
+    
+    -- Evento para minimizar/maximizar la GUI
+    MinimizeButton.MouseButton1Click:Connect(function()
+        Minimized = not Minimized
+        
+        if Minimized then
+            local minimizeTween = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, 600, 0, 40)
+            })
+            minimizeTween:Play()
+        else
+            local maximizeTween = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                Size = OriginalSize
+            })
+            maximizeTween:Play()
+        end
     end)
     
     -- Panel de contenido con pestañas
@@ -109,6 +375,7 @@ function UILibrary:Create(title)
     ContentFrame.Position = UDim2.new(0, 10, 0, 50)
     ContentFrame.BackgroundTransparency = 1
     ContentFrame.BorderSizePixel = 0
+    ContentFrame.ClipsDescendants = true
     ContentFrame.Parent = MainFrame
     
     -- Divisor para Tabs y Contenido
@@ -189,14 +456,31 @@ function UILibrary:Create(title)
     UserName.Font = Enum.Font.GothamSemibold
     UserName.Parent = UserProfileFrame
     
+    -- Determinar el rango del jugador según su ID
+    local userRank = "USER"  -- Rango predeterminado
+    local userRankColor = Ranks.USER.Color
+    
+    if userId then
+        -- Verificar si el ID está en alguno de los rangos
+        for rank, data in pairs(Ranks) do
+            for _, id in ipairs(data.ID) do
+                if id == userId then
+                    userRank = rank
+                    userRankColor = data.Color
+                    break
+                end
+            end
+        end
+    end
+    
     -- Rango del jugador
     local UserRank = Instance.new("TextLabel")
     UserRank.Name = "UserRank"
     UserRank.Size = UDim2.new(1, -10, 0, 15)
     UserRank.Position = UDim2.new(0, 5, 1, -20)
     UserRank.BackgroundTransparency = 1
-    UserRank.Text = "VIP"
-    UserRank.TextColor3 = Color3.fromRGB(255, 215, 0) -- Dorado para VIP
+    UserRank.Text = userRank
+    UserRank.TextColor3 = userRankColor
     UserRank.TextSize = 12
     UserRank.Font = Enum.Font.GothamBold
     UserRank.Parent = UserProfileFrame
@@ -227,9 +511,48 @@ function UILibrary:Create(title)
     local Tabs = {}
     local CurrentTab = nil
     
+    -- Hacer la ventana arrastrables
+    if draggable then
+        local isDragging = false
+        local dragInput
+        local dragStart
+        local startPos
+        
+        local function updateDrag(input)
+            local delta = input.Position - dragStart
+            MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+        
+        TitleBar.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                isDragging = true
+                dragStart = input.Position
+                startPos = MainFrame.Position
+                
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then
+                        isDragging = false
+                    end
+                end)
+            end
+        end)
+        
+        TitleBar.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement then
+                dragInput = input
+            end
+        end)
+        
+        UserInputService.InputChanged:Connect(function(input)
+            if input == dragInput and isDragging then
+                updateDrag(input)
+            end
+        end)
+    end
+    
     -- Agregar animación de apertura
     MainFrame.Size = UDim2.new(0, 0, 0, 0)
-    local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 600, 0, 400)})
+    local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 600, 0, 400)})
     openTween:Play()
     
     -- Función para crear una pestaña
@@ -319,38 +642,85 @@ function UILibrary:Create(title)
             Indicator = SelectIndicator
         }
         
-        -- Evento para cambiar de pestaña
+        -- Evento para cambiar de pestaña con animaciones mejoradas
         TabButton.MouseButton1Click:Connect(function()
-            if CurrentTab then
-                CurrentTab.Indicator.Visible = false
-                CurrentTab.Container.Visible = false
-                TweenService:Create(CurrentTab.Button, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(45, 45, 45)}):Play()
+            if CurrentTab and CurrentTab ~= Tab then
+                -- Ocultar pestaña anterior con animación
+                TweenService:Create(CurrentTab.Indicator, TweenInfo.new(0.3), {
+                    Size = UDim2.new(0, 0, 0.7, 0)
+                }):Play()
+                
+                local fadeOut = TweenService:Create(CurrentTab.Container, TweenInfo.new(0.3), {
+                    Position = UDim2.new(0.1, 0, 0, 0),
+                    Transparency = 1
+                })
+                
+                fadeOut:Play()
+                fadeOut.Completed:Connect(function()
+                    CurrentTab.Container.Visible = false
+                    CurrentTab.Container.Position = UDim2.new(0, 0, 0, 0)
+                end)
+                
+                TweenService:Create(CurrentTab.Button, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                }):Play()
             end
             
-            Tab.Indicator.Visible = true
+            -- Mostrar nueva pestaña
+            Tab.Container.Transparency = 1
+            Tab.Container.Position = UDim2.new(-0.1, 0, 0, 0)
             Tab.Container.Visible = true
-            TweenService:Create(Tab.Button, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+            
+            -- Animaciones para mostrar la pestaña
+            TweenService:Create(Tab.Indicator, TweenInfo.new(0.3), {
+                Size = UDim2.new(0, 4, 0.7, 0)
+            }):Play()
+            
+            TweenService:Create(Tab.Container, TweenInfo.new(0.3), {
+                Position = UDim2.new(0, 0, 0, 0),
+                Transparency = 0
+            }):Play()
+            
+            TweenService:Create(Tab.Button, TweenInfo.new(0.3), {
+                BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+            }):Play()
+            
+            Tab.Indicator.Visible = true
             CurrentTab = Tab
         end)
         
         -- Animaciones hover
         TabButton.MouseEnter:Connect(function()
             if CurrentTab ~= Tab then
-                TweenService:Create(TabButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+                TweenService:Create(TabButton, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+                }):Play()
             end
         end)
         
         TabButton.MouseLeave:Connect(function()
             if CurrentTab ~= Tab then
-                TweenService:Create(TabButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(45, 45, 45)}):Play()
+                TweenService:Create(TabButton, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                }):Play()
             end
         end)
         
         -- Si es la primera pestaña, seleccionarla por defecto
         if not CurrentTab then
+            Tab.Indicator.Size = UDim2.new(0, 0, 0.7, 0)
             Tab.Indicator.Visible = true
             Tab.Container.Visible = true
-            TweenService:Create(Tab.Button, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+            
+            -- Animaciones iniciales
+            TweenService:Create(Tab.Indicator, TweenInfo.new(0.3), {
+                Size = UDim2.new(0, 4, 0.7, 0)
+            }):Play()
+            
+            TweenService:Create(Tab.Button, TweenInfo.new(0.3), {
+                BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+            }):Play()
+            
             CurrentTab = Tab
         end
         
@@ -360,7 +730,7 @@ function UILibrary:Create(title)
         -- Función para añadir un título o separador
         function TabElements:AddLabel(text)
             local Label = Instance.new("Frame")
-            Label.Name = "Label"
+            Label.Name = "Label_" .. text
             Label.Size = UDim2.new(1, 0, 0, 30)
             Label.BackgroundTransparency = 1
             Label.Parent = TabContainer
@@ -384,6 +754,19 @@ function UILibrary:Create(title)
             Line.BorderSizePixel = 0
             Line.Parent = Label
             
+            -- Animación al aparecer
+            Label.BackgroundTransparency = 1
+            Line.Size = UDim2.new(0, 0, 0, 1)
+            
+            TweenService:Create(Line, TweenInfo.new(0.5), {
+                Size = UDim2.new(1, 0, 0, 1)
+            }):Play()
+            
+            -- Método para actualizar el texto
+            function Label:UpdateText(newText)
+                LabelText.Text = newText
+            end
+            
             return Label
         end
         
@@ -392,7 +775,7 @@ function UILibrary:Create(title)
             callback = callback or function() end
             
             local Button = Instance.new("Frame")
-            Button.Name = "Button"
+            Button.Name = "Button_" .. text
             Button.Size = UDim2.new(1, 0, 0, 40)
             Button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
             Button.BorderSizePixel = 0
@@ -402,6 +785,12 @@ function UILibrary:Create(title)
             local ButtonCorner = Instance.new("UICorner")
             ButtonCorner.CornerRadius = UDim.new(0, 6)
             ButtonCorner.Parent = Button
+            
+            -- Efecto de brillo
+            local ButtonStroke = Instance.new("UIStroke")
+            ButtonStroke.Color = Color3.fromRGB(60, 60, 60)
+            ButtonStroke.Thickness = 1
+            ButtonStroke.Parent = Button
             
             local ButtonBtn = Instance.new("TextButton")
             ButtonBtn.Name = "ButtonElement"
@@ -413,13 +802,48 @@ function UILibrary:Create(title)
             ButtonBtn.Font = Enum.Font.GothamSemibold
             ButtonBtn.Parent = Button
             
-            -- Animación de pulsación
-            ButtonBtn.MouseButton1Down:Connect(function()
-                TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = config.AccentColor}):Play()
+            -- Efecto de ripple (ondas al hacer clic)
+            local function createRipple(x, y)
+                local Ripple = Instance.new("Frame")
+                Ripple.Name = "Ripple"
+                Ripple.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                Ripple.BackgroundTransparency = 0.7
+                Ripple.BorderSizePixel = 0
+                Ripple.ZIndex = 2
+                Ripple.AnchorPoint = Vector2.new(0.5, 0.5)
+                Ripple.Position = UDim2.new(0, x, 0, y)
+                Ripple.Size = UDim2.new(0, 0, 0, 0)
+                
+                local RippleCorner = Instance.new("UICorner")
+                RippleCorner.CornerRadius = UDim.new(1, 0)
+                RippleCorner.Parent = Ripple
+                
+                Ripple.Parent = Button
+                
+                local targetSize = UDim2.new(0, 250, 0, 250)
+                
+                TweenService:Create(Ripple, TweenInfo.new(0.5), {
+                    Size = targetSize,
+                    BackgroundTransparency = 1
+                }):Play()
+                
+                task.delay(0.5, function()
+                    Ripple:Destroy()
+                end)
+            end
+            
+            -- Animación de pulsación con efecto ripple
+            ButtonBtn.MouseButton1Down:Connect(function(x, y)
+                createRipple(x - Button.AbsolutePosition.X, y - Button.AbsolutePosition.Y)
+                TweenService:Create(Button, TweenInfo.new(0.1), {
+                    BackgroundColor3 = config.AccentColor
+                }):Play()
             end)
             
             ButtonBtn.MouseButton1Up:Connect(function()
-                TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(45, 45, 45)}):Play()
+                TweenService:Create(Button, TweenInfo.new(0.1), {
+                    BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                }):Play()
             end)
             
             -- Evento para ejecutar callback
@@ -429,12 +853,29 @@ function UILibrary:Create(title)
             
             -- Animaciones hover
             ButtonBtn.MouseEnter:Connect(function()
-                TweenService:Create(Button, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(55, 55, 55)}):Play()
+                TweenService:Create(Button, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+                }):Play()
+                
+                TweenService:Create(ButtonStroke, TweenInfo.new(0.3), {
+                    Color = config.AccentColor
+                }):Play()
             end)
             
             ButtonBtn.MouseLeave:Connect(function()
-                TweenService:Create(Button, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(45, 45, 45)}):Play()
+                TweenService:Create(Button, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                }):Play()
+                
+                TweenService:Create(ButtonStroke, TweenInfo.new(0.3), {
+                    Color = Color3.fromRGB(60, 60, 60)
+                }):Play()
             end)
+            
+            -- Método para actualizar el texto
+            function Button:UpdateText(newText)
+                ButtonBtn.Text = newText
+            end
             
             return Button
         end
@@ -445,7 +886,7 @@ function UILibrary:Create(title)
             callback = callback or function() end
             
             local Toggle = Instance.new("Frame")
-            Toggle.Name = "Toggle"
+            Toggle.Name = "Toggle_" .. text
             Toggle.Size = UDim2.new(1, 0, 0, 40)
             Toggle.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
             Toggle.BorderSizePixel = 0
@@ -510,11 +951,11 @@ function UILibrary:Create(title)
             
             -- Función para actualizar visualmente el toggle
             local function UpdateToggle()
-                TweenService:Create(Switch, TweenInfo.new(0.3), {
+                TweenService:Create(Switch, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
                     BackgroundColor3 = Toggled and config.ToggleOnColor or config.ToggleOffColor
                 }):Play()
                 
-                TweenService:Create(Circle, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                TweenService:Create(Circle, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
                     Position = UDim2.new(Toggled and 1 or 0, Toggled and -18 or 2, 0.5, -8)
                 }):Play()
             end
@@ -528,12 +969,27 @@ function UILibrary:Create(title)
             
             -- Animaciones hover
             ToggleButton.MouseEnter:Connect(function()
-                TweenService:Create(Toggle, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(55, 55, 55)}):Play()
+                TweenService:Create(Toggle, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+                }):Play()
             end)
             
             ToggleButton.MouseLeave:Connect(function()
-                TweenService:Create(Toggle, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(45, 45, 45)}):Play()
+                TweenService:Create(Toggle, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                }):Play()
             end)
+            
+            -- Método para actualizar el estado del toggle
+            function Toggle:UpdateState(state)
+                Toggled = state
+                UpdateToggle()
+            end
+            
+            -- Método para obtener el estado actual
+            function Toggle:GetState()
+                return Toggled
+            end
             
             return Toggle
         end
@@ -546,7 +1002,7 @@ function UILibrary:Create(title)
             callback = callback or function() end
             
             local Slider = Instance.new("Frame")
-            Slider.Name = "Slider"
+            Slider.Name = "Slider_" .. text
             Slider.Size = UDim2.new(1, 0, 0, 60)
             Slider.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
             Slider.BorderSizePixel = 0
@@ -637,16 +1093,16 @@ function UILibrary:Create(title)
             local Dragging = false
             local Value = default
             
-            -- Función para actualizar el valor del slider
+            -- Función para actualizar el valor del slider de manera suave
             local function UpdateSlider(input)
                 local pos = UDim2.new(math.clamp((input.Position.X - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X, 0, 1), -8, 0.5, -8)
                 local value = math.floor(min + ((max - min) * math.clamp((input.Position.X - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X, 0, 1)))
                 
-                TweenService:Create(SliderCircle, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                TweenService:Create(SliderCircle, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                     Position = pos
                 }):Play()
                 
-                TweenService:Create(SliderFill, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                TweenService:Create(SliderFill, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                     Size = UDim2.new(math.clamp((input.Position.X - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X, 0, 1), 0, 1, 0)
                 }):Play()
                 
@@ -658,6 +1114,7 @@ function UILibrary:Create(title)
             -- Eventos para el deslizamiento
             SliderButton.MouseButton1Down:Connect(function(input)
                 Dragging = true
+                UpdateSlider(input)
             end)
             
             UserInputService.InputEnded:Connect(function(input)
@@ -674,12 +1131,50 @@ function UILibrary:Create(title)
             
             -- Animaciones hover
             SliderButton.MouseEnter:Connect(function()
-                TweenService:Create(Slider, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(55, 55, 55)}):Play()
+                TweenService:Create(Slider, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+                }):Play()
+                
+                TweenService:Create(SliderCircle, TweenInfo.new(0.3), {
+                    Size = UDim2.new(0, 18, 0, 18),
+                    Position = UDim2.new(SliderCircle.Position.X.Scale, -9, 0.5, -9)
+                }):Play()
             end)
             
             SliderButton.MouseLeave:Connect(function()
-                TweenService:Create(Slider, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(45, 45, 45)}):Play()
+                TweenService:Create(Slider, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                }):Play()
+                
+                TweenService:Create(SliderCircle, TweenInfo.new(0.3), {
+                    Size = UDim2.new(0, 16, 0, 16),
+                    Position = UDim2.new(SliderCircle.Position.X.Scale, -8, 0.5, -8)
+                }):Play()
             end)
+            
+            -- Método para actualizar el valor del slider
+            function Slider:SetValue(value)
+                value = math.clamp(value, min, max)
+                Value = value
+                SliderValue.Text = tostring(value)
+                
+                local scale = (value - min) / (max - min)
+                
+                TweenService:Create(SliderFill, TweenInfo.new(0.3), {
+                    Size = UDim2.new(scale, 0, 1, 0)
+                }):Play()
+                
+                TweenService:Create(SliderCircle, TweenInfo.new(0.3), {
+                    Position = UDim2.new(scale, -8, 0.5, -8)
+                }):Play()
+                
+                callback(value)
+            end
+            
+            -- Método para obtener el valor actual
+            function Slider:GetValue()
+                return Value
+            end
             
             return Slider
         end
@@ -690,7 +1185,7 @@ function UILibrary:Create(title)
             callback = callback or function() end
             
             local Textbox = Instance.new("Frame")
-            Textbox.Name = "Textbox"
+            Textbox.Name = "Textbox_" .. text
             Textbox.Size = UDim2.new(1, 0, 0, 40)
             Textbox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
             Textbox.BorderSizePixel = 0
@@ -728,6 +1223,13 @@ function UILibrary:Create(title)
             InputBoxCorner.CornerRadius = UDim.new(0, 6)
             InputBoxCorner.Parent = InputBox
             
+            -- Borde del campo cuando está seleccionado
+            local InputBoxStroke = Instance.new("UIStroke")
+            InputBoxStroke.Color = Color3.fromRGB(60, 60, 60)
+            InputBoxStroke.Thickness = 1
+            InputBoxStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+            InputBoxStroke.Parent = InputBox
+            
             -- El campo de texto real
             local InputField = Instance.new("TextBox")
             InputField.Name = "Input"
@@ -752,14 +1254,55 @@ function UILibrary:Create(title)
                 end
             end)
             
-            -- Animaciones hover
+            -- Animaciones focus
             InputField.Focused:Connect(function()
-                TweenService:Create(InputBox, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(45, 45, 45)}):Play()
+                TweenService:Create(InputBox, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                }):Play()
+                
+                TweenService:Create(InputBoxStroke, TweenInfo.new(0.3), {
+                    Color = config.AccentColor,
+                    Thickness = 2
+                }):Play()
             end)
             
             InputField.FocusLost:Connect(function()
-                TweenService:Create(InputBox, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(35, 35, 35)}):Play()
+                TweenService:Create(InputBox, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+                }):Play()
+                
+                TweenService:Create(InputBoxStroke, TweenInfo.new(0.3), {
+                    Color = Color3.fromRGB(60, 60, 60),
+                    Thickness = 1
+                }):Play()
             end)
+            
+            -- Animaciones hover
+            InputField.MouseEnter:Connect(function()
+                if not InputField:IsFocused() then
+                    TweenService:Create(InputBox, TweenInfo.new(0.3), {
+                        BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                    }):Play()
+                end
+            end)
+            
+            InputField.MouseLeave:Connect(function()
+                if not InputField:IsFocused() then
+                    TweenService:Create(InputBox, TweenInfo.new(0.3), {
+                        BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+                    }):Play()
+                end
+            end)
+            
+            -- Método para establecer el texto
+            function Textbox:SetText(value)
+                InputField.Text = value
+            end
+            
+            -- Método para obtener el texto actual
+            function Textbox:GetText()
+                return InputField.Text
+            end
             
             return Textbox
         end
@@ -770,7 +1313,7 @@ function UILibrary:Create(title)
             callback = callback or function() end
             
             local Dropdown = Instance.new("Frame")
-            Dropdown.Name = "Dropdown"
+            Dropdown.Name = "Dropdown_" .. text
             Dropdown.Size = UDim2.new(1, 0, 0, 40)
             Dropdown.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
             Dropdown.BorderSizePixel = 0
@@ -832,7 +1375,7 @@ function UILibrary:Create(title)
             SelectedText.TextXAlignment = Enum.TextXAlignment.Right
             SelectedText.Parent = Dropdown
             
-            -- Inicializar opciones
+            -- Inicializar opciones con animaciones hover
             for i, option in ipairs(options) do
                 local OptionButton = Instance.new("TextButton")
                 OptionButton.Name = option
@@ -857,41 +1400,67 @@ function UILibrary:Create(title)
                     SelectedText.Text = option
                     callback(option)
                     
-                    -- Cerrar el dropdown
-                    TweenService:Create(Dropdown, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 40)}):Play()
-                    TweenService:Create(ArrowButton, TweenInfo.new(0.3), {Rotation = 0}):Play()
+                    -- Cerrar el dropdown con animación
+                    TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                        Size = UDim2.new(1, 0, 0, 40)
+                    }):Play()
+                    
+                    TweenService:Create(ArrowButton, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                        Rotation = 0
+                    }):Play()
+                    
                     task.delay(0.3, function()
                         OptionsFrame.Visible = false
                     end)
+                    
                     IsOpen = false
                 end)
                 
                 -- Animaciones hover
                 OptionButton.MouseEnter:Connect(function()
-                    TweenService:Create(OptionButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+                    TweenService:Create(OptionButton, TweenInfo.new(0.2), {
+                        BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+                    }):Play()
                 end)
                 
                 OptionButton.MouseLeave:Connect(function()
-                    TweenService:Create(OptionButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+                    TweenService:Create(OptionButton, TweenInfo.new(0.2), {
+                        BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+                    }):Play()
                 end)
             end
             
-            -- Evento para abrir/cerrar el dropdown
-            ArrowButton.MouseButton1Click:Connect(function()
+            -- Función para abrir/cerrar el dropdown con animaciones mejoradas
+            local function ToggleDropdown()
                 IsOpen = not IsOpen
                 
                 if IsOpen then
                     OptionsFrame.Visible = true
-                    TweenService:Create(Dropdown, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 45 + (#options * 30))}):Play()
-                    TweenService:Create(ArrowButton, TweenInfo.new(0.3), {Rotation = 180}):Play()
+                    
+                    TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                        Size = UDim2.new(1, 0, 0, 45 + (#options * 30))
+                    }):Play()
+                    
+                    TweenService:Create(ArrowButton, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                        Rotation = 180
+                    }):Play()
                 else
-                    TweenService:Create(Dropdown, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 40)}):Play()
-                    TweenService:Create(ArrowButton, TweenInfo.new(0.3), {Rotation = 0}):Play()
+                    TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                        Size = UDim2.new(1, 0, 0, 40)
+                    }):Play()
+                    
+                    TweenService:Create(ArrowButton, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                        Rotation = 0
+                    }):Play()
+                    
                     task.delay(0.3, function()
                         OptionsFrame.Visible = false
                     end)
                 end
-            end)
+            end
+            
+            -- Evento para abrir/cerrar el dropdown
+            ArrowButton.MouseButton1Click:Connect(ToggleDropdown)
             
             -- Área clickable completa
             local DropdownButton = Instance.new("TextButton")
@@ -902,30 +1471,107 @@ function UILibrary:Create(title)
             DropdownButton.Parent = Dropdown
             
             -- Conectar evento al botón completo
-            DropdownButton.MouseButton1Click:Connect(function()
-                IsOpen = not IsOpen
-                
-                if IsOpen then
-                    OptionsFrame.Visible = true
-                    TweenService:Create(Dropdown, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 45 + (#options * 30))}):Play()
-                    TweenService:Create(ArrowButton, TweenInfo.new(0.3), {Rotation = 180}):Play()
-                else
-                    TweenService:Create(Dropdown, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 40)}):Play()
-                    TweenService:Create(ArrowButton, TweenInfo.new(0.3), {Rotation = 0}):Play()
-                    task.delay(0.3, function()
-                        OptionsFrame.Visible = false
-                    end)
-                end
-            end)
+            DropdownButton.MouseButton1Click:Connect(ToggleDropdown)
             
             -- Animaciones hover
             DropdownButton.MouseEnter:Connect(function()
-                TweenService:Create(Dropdown, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(55, 55, 55)}):Play()
+                TweenService:Create(Dropdown, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+                }):Play()
             end)
             
             DropdownButton.MouseLeave:Connect(function()
-                TweenService:Create(Dropdown, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(45, 45, 45)}):Play()
+                TweenService:Create(Dropdown, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                }):Play()
             end)
+            
+            -- Método para actualizar las opciones
+            function Dropdown:SetOptions(newOptions)
+                -- Limpiar opciones anteriores
+                for _, child in pairs(OptionsFrame:GetChildren()) do
+                    if child:IsA("TextButton") then
+                        child:Destroy()
+                    end
+                end
+                
+                -- Actualizar tamaño del contenedor
+                OptionsFrame.Size = UDim2.new(1, -20, 0, #newOptions * 30)
+                
+                -- Agregar nuevas opciones
+                for i, option in ipairs(newOptions) do
+                    local OptionButton = Instance.new("TextButton")
+                    OptionButton.Name = option
+                    OptionButton.Size = UDim2.new(1, 0, 0, 30)
+                    OptionButton.Position = UDim2.new(0, 0, 0, (i-1) * 30)
+                    OptionButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+                    OptionButton.BorderSizePixel = 0
+                    OptionButton.Text = option
+                    OptionButton.TextColor3 = config.TextColor
+                    OptionButton.TextSize = 14
+                    OptionButton.Font = Enum.Font.Gotham
+                    OptionButton.Parent = OptionsFrame
+                    
+                    -- Redondear botón
+                    local OptionCorner = Instance.new("UICorner")
+                    OptionCorner.CornerRadius = UDim.new(0, 4)
+                    OptionCorner.Parent = OptionButton
+                    
+                    -- Eventos para la opción
+                    OptionButton.MouseButton1Click:Connect(function()
+                        SelectedOption = option
+                        SelectedText.Text = option
+                        callback(option)
+                        
+                        -- Cerrar el dropdown
+                        TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                            Size = UDim2.new(1, 0, 0, 40)
+                        }):Play()
+                        
+                        TweenService:Create(ArrowButton, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                            Rotation = 0
+                        }):Play()
+                        
+                        task.delay(0.3, function()
+                            OptionsFrame.Visible = false
+                        end)
+                        
+                        IsOpen = false
+                    end)
+                    
+                    -- Animaciones hover
+                    OptionButton.MouseEnter:Connect(function()
+                        TweenService:Create(OptionButton, TweenInfo.new(0.2), {
+                            BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+                        }):Play()
+                    end)
+                    
+                    OptionButton.MouseLeave:Connect(function()
+                        TweenService:Create(OptionButton, TweenInfo.new(0.2), {
+                            BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+                        }):Play()
+                    end)
+                end
+                
+                -- Actualizar el tamaño si está abierto
+                if IsOpen then
+                    TweenService:Create(Dropdown, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                        Size = UDim2.new(1, 0, 0, 45 + (#newOptions * 30))
+                    }):Play()
+                end
+            end
+            
+            -- Método para seleccionar una opción
+            function Dropdown:Select(option)
+                SelectedOption = option
+                SelectedText.Text = option
+                callback(option)
+            end
+            
+            -- Método para obtener la opción seleccionada
+            function Dropdown:GetSelected()
+                return SelectedOption
+            end
             
             return Dropdown
         end
@@ -940,13 +1586,132 @@ function UILibrary:Create(title)
             
             local Line = Instance.new("Frame")
             Line.Name = "Line"
-            Line.Size = UDim2.new(1, 0, 0, 1)
+            Line.Size = UDim2.new(0, 0, 0, 1)
             Line.Position = UDim2.new(0, 0, 0.5, 0)
             Line.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
             Line.BorderSizePixel = 0
             Line.Parent = Divider
             
+            -- Animación de aparición
+            TweenService:Create(Line, TweenInfo.new(0.5), {
+                Size = UDim2.new(1, 0, 0, 1)
+            }):Play()
+            
             return Divider
+        end
+        
+        -- Función para añadir un colorpicker
+        function TabElements:AddColorPicker(text, default, callback)
+            default = default or Color3.fromRGB(255, 255, 255)
+            callback = callback or function() end
+            
+            local ColorPicker = Instance.new("Frame")
+            ColorPicker.Name = "ColorPicker_" .. text
+            ColorPicker.Size = UDim2.new(1, 0, 0, 40)
+            ColorPicker.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+            ColorPicker.BorderSizePixel = 0
+            ColorPicker.Parent = TabContainer
+            
+            -- Redondear colorpicker
+            local ColorPickerCorner = Instance.new("UICorner")
+            ColorPickerCorner.CornerRadius = UDim.new(0, 6)
+            ColorPickerCorner.Parent = ColorPicker
+            
+            -- Texto del colorpicker
+            local ColorPickerText = Instance.new("TextLabel")
+            ColorPickerText.Name = "Title"
+            ColorPickerText.Size = UDim2.new(1, -60, 1, 0)
+            ColorPickerText.Position = UDim2.new(0, 10, 0, 0)
+            ColorPickerText.BackgroundTransparency = 1
+            ColorPickerText.Text = text
+            ColorPickerText.TextColor3 = config.TextColor
+            ColorPickerText.TextSize = 14
+            ColorPickerText.Font = Enum.Font.GothamSemibold
+            ColorPickerText.TextXAlignment = Enum.TextXAlignment.Left
+            ColorPickerText.Parent = ColorPicker
+            
+            -- Cuadrado de color
+            local ColorBox = Instance.new("Frame")
+            ColorBox.Name = "ColorBox"
+            ColorBox.Size = UDim2.new(0, 30, 0, 30)
+            ColorBox.Position = UDim2.new(1, -40, 0.5, -15)
+            ColorBox.BackgroundColor3 = default
+            ColorBox.BorderSizePixel = 0
+            ColorBox.Parent = ColorPicker
+            
+            -- Redondear cuadrado de color
+            local ColorBoxCorner = Instance.new("UICorner")
+            ColorBoxCorner.CornerRadius = UDim.new(0, 6)
+            ColorBoxCorner.Parent = ColorBox
+            
+            -- Área clickable
+            local ColorButton = Instance.new("TextButton")
+            ColorButton.Name = "ColorButton"
+            ColorButton.Size = UDim2.new(1, 0, 1, 0)
+            ColorButton.BackgroundTransparency = 1
+            ColorButton.Text = ""
+            ColorButton.Parent = ColorPicker
+            
+            -- Estado del colorpicker
+            local SelectedColor = default
+            
+            -- Método para actualizar el color mostrado
+            local function UpdateColor(color)
+                SelectedColor = color
+                ColorBox.BackgroundColor3 = color
+                callback(color)
+            end
+            
+            -- Botón para seleccionar el color (simplificado)
+            ColorButton.MouseButton1Click:Connect(function()
+                -- Aquí podrías implementar una interfaz completa de selector de color
+                -- Para este ejemplo, solo cambiaremos entre algunos colores predefinidos
+                local colors = {
+                    Color3.fromRGB(255, 0, 0),   -- Rojo
+                    Color3.fromRGB(0, 255, 0),   -- Verde
+                    Color3.fromRGB(0, 0, 255),   -- Azul
+                    Color3.fromRGB(255, 255, 0), -- Amarillo
+                    Color3.fromRGB(255, 0, 255), -- Magenta
+                    Color3.fromRGB(0, 255, 255)  -- Cian
+                }
+                
+                -- Encontrar el índice del color actual
+                local currentIndex = 1
+                for i, color in ipairs(colors) do
+                    if color == SelectedColor then
+                        currentIndex = i
+                        break
+                    end
+                end
+                
+                -- Pasar al siguiente color
+                local nextIndex = currentIndex % #colors + 1
+                UpdateColor(colors[nextIndex])
+            end)
+            
+            -- Animaciones hover
+            ColorButton.MouseEnter:Connect(function()
+                TweenService:Create(ColorPicker, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+                }):Play()
+            end)
+            
+            ColorButton.MouseLeave:Connect(function()
+                TweenService:Create(ColorPicker, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                }):Play()
+            end)
+            
+            -- Métodos
+            function ColorPicker:SetColor(color)
+                UpdateColor(color)
+            end
+            
+            function ColorPicker:GetColor()
+                return SelectedColor
+            end
+            
+            return ColorPicker
         end
         
         return TabElements
@@ -955,8 +1720,8 @@ function UILibrary:Create(title)
     -- Función para establecer el rango del usuario (VIP, Admin, etc.)
     function UILibrary:SetRank(rank, color)
         if UserRank then
-            UserRank.Text = rank or "Usuario"
-            UserRank.TextColor3 = color or Color3.fromRGB(255, 215, 0)
+            UserRank.Text = rank or "USER"
+            UserRank.TextColor3 = color or Ranks.USER.Color
         end
     end
     
@@ -973,6 +1738,18 @@ function UILibrary:Create(title)
             if config[key] then
                 config[key] = value
             end
+        end
+    end
+    
+    -- Función para mostrar notificaciones
+    function UILibrary:Notify(title, message, notifType, duration, icon)
+        NotificationSystem:Notify(title, message, icon, duration, notifType)
+    end
+    
+    -- Función para modificar los IDs de rangos de usuario
+    function UILibrary:SetRankIDs(rankName, ids)
+        if Ranks[rankName] then
+            Ranks[rankName].ID = ids
         end
     end
     
