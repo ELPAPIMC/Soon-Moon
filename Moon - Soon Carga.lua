@@ -21,20 +21,6 @@ local Colors = {
     NotificationBorder = Color3.fromRGB(60, 60, 255)
 }
 
--- Notification stack management
-local NotificationStack = {}
-local NOTIFICATION_OFFSET = 100
-local NOTIFICATION_SPACING = 10
-
--- Helper function for animations
-local function createTween(instance, properties, duration, easingStyle, easingDirection)
-    local TweenService = game:GetService("TweenService")
-    local tweenInfo = TweenInfo.new(duration, easingStyle or Enum.EasingStyle.Quad, easingDirection or Enum.EasingDirection.Out)
-    local tween = TweenService:Create(instance, tweenInfo, properties)
-    tween:Play()
-    return tween
-end
-
 -- Main GUI creation
 function Library:CreateWindow(title)
     local ScreenGui = Instance.new("ScreenGui")
@@ -50,10 +36,6 @@ function Library:CreateWindow(title)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
     MainFrame.Parent = ScreenGui
-    MainFrame.BackgroundTransparency = 1
-    
-    -- Fade-in animation
-    createTween(MainFrame, {BackgroundTransparency = 0}, 0.5)
     
     -- Make draggable
     local UserInputService = game:GetService("UserInputService")
@@ -126,9 +108,7 @@ function Library:CreateWindow(title)
     CloseButton.Parent = TitleBar
     
     CloseButton.MouseButton1Click:Connect(function()
-        createTween(MainFrame, {BackgroundTransparency = 1}, 0.5).Completed:Connect(function()
-            ScreenGui:Destroy()
-        end)
+        ScreenGui:Destroy()
     end)
     
     -- Tab container
@@ -174,10 +154,6 @@ function Library:AddTab(window, tabName, icon)
     TabButton.BorderSizePixel = 0
     TabButton.Text = ""
     TabButton.Parent = window.TabContainer
-    TabButton.BackgroundTransparency = 0.5
-    
-    -- Fade-in animation
-    createTween(TabButton, {BackgroundTransparency = 0}, 0.3)
     
     local TabLabel = Instance.new("TextLabel")
     TabLabel.Name = "Label"
@@ -238,9 +214,8 @@ function Library:AddTab(window, tabName, icon)
             tab.Page.Visible = false
         end
         
-        createTween(TabButton, {BackgroundColor3 = Colors.Selected}, 0.3)
+        TabButton.BackgroundColor3 = Colors.Selected
         ContentPage.Visible = true
-        createTween(ContentPage, {ScrollBarImageTransparency = 0}, 0.3)
     end)
     
     -- Select first tab by default
@@ -253,37 +228,6 @@ function Library:AddTab(window, tabName, icon)
     tab.Page = ContentPage
     
     return tab
-end
-
--- Add label function
-function Library:AddLabel(tab, text)
-    local LabelContainer = Instance.new("Frame")
-    LabelContainer.Name = "LabelContainer"
-    LabelContainer.Size = UDim2.new(1, 0, 0, 30)
-    LabelContainer.BackgroundTransparency = 1
-    LabelContainer.Parent = tab.Page
-    
-    local Label = Instance.new("TextLabel")
-    Label.Name = "Label"
-    Label.Size = UDim2.new(1, -10, 1, 0)
-    Label.Position = UDim2.new(0, 10, 0, 0)
-    Label.BackgroundTransparency = 1
-    Label.Text = text
-    Label.TextColor3 = Colors.Text
-    Label.TextSize = 14
-    Label.Font = Enum.Font.SourceSans
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.TextTransparency = 1
-    Label.Parent = LabelContainer
-    
-    -- Fade-in animation
-    createTween(Label, {TextTransparency = 0}, 0.5)
-    
-    local label = {}
-    label.Container = LabelContainer
-    label.Label = Label
-    
-    return label
 end
 
 -- Add toggle function
@@ -307,7 +251,6 @@ function Library:AddToggle(tab, name, default, callback)
     ToggleLabel.TextSize = 14
     ToggleLabel.Font = Enum.Font.SourceSans
     ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    ToggleLabel.TextTransparency = 1
     ToggleLabel.Parent = ToggleContainer
     
     local ToggleButton = Instance.new("Frame")
@@ -351,15 +294,18 @@ function Library:AddToggle(tab, name, default, callback)
     local function updateToggle()
         Toggle.Value = not Toggle.Value
         
-        createTween(ToggleButton, {BackgroundColor3 = Toggle.Value and Colors.ToggleOn or Colors.ToggleOff}, 0.2)
-        createTween(ToggleCircle, {Position = Toggle.Value and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)}, 0.2)
+        if Toggle.Value then
+            ToggleButton.BackgroundColor3 = Colors.ToggleOn
+            ToggleCircle:TweenPosition(UDim2.new(1, -18, 0.5, -8), "Out", "Quad", 0.2, true)
+        else
+            ToggleButton.BackgroundColor3 = Colors.ToggleOff
+            ToggleCircle:TweenPosition(UDim2.new(0, 2, 0.5, -8), "Out", "Quad", 0.2, true)
+        end
+        
         callback(Toggle.Value)
     end
     
     ToggleClickArea.MouseButton1Click:Connect(updateToggle)
-    
-    -- Fade-in animation
-    createTween(ToggleLabel, {TextTransparency = 0}, 0.5)
     
     -- Add to toggles table
     table.insert(self.Toggles, Toggle)
@@ -393,7 +339,6 @@ function Library:AddSlider(tab, name, options, callback)
     SliderLabel.TextSize = 14
     SliderLabel.Font = Enum.Font.SourceSans
     SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
-    SliderLabel.TextTransparency = 1
     SliderLabel.Parent = SliderContainer
     
     local SliderBackground = Instance.new("Frame")
@@ -427,7 +372,6 @@ function Library:AddSlider(tab, name, options, callback)
     SliderValue.TextSize = 14
     SliderValue.Font = Enum.Font.SourceSans
     SliderValue.TextXAlignment = Enum.TextXAlignment.Right
-    SliderValue.TextTransparency = 1
     SliderValue.Parent = SliderContainer
     
     local SliderThumb = Instance.new("Frame")
@@ -479,8 +423,8 @@ function Library:AddSlider(tab, name, options, callback)
         SliderValue.Text = displayValue .. suffix
         
         local fillWidth = relPos * SliderBackground.AbsoluteSize.X
-        createTween(SliderFill, {Size = UDim2.new(0, fillWidth, 1, 0)}, 0.2)
-        createTween(SliderThumb, {Position = UDim2.new(0, fillWidth - 6, 0.5, -6)}, 0.2)
+        SliderFill.Size = UDim2.new(0, fillWidth, 1, 0)
+        SliderThumb.Position = UDim2.new(0, fillWidth - 6, 0.5, -6)
         
         callback(value)
     end
@@ -501,21 +445,17 @@ function Library:AddSlider(tab, name, options, callback)
         updateSlider({Position = input})
     end)
     
-    UserInputService.InputEnded:Connect(function(input)
+    game:GetService("UserInputService").InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
         end
     end)
     
-    UserInputService.InputChanged:Connect(function(input)
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             updateSlider(input)
         end
     end)
-    
-    -- Fade-in animation
-    createTween(SliderLabel, {TextTransparency = 0}, 0.5)
-    createTween(SliderValue, {TextTransparency = 0}, 0.5)
     
     -- Add to sliders table
     table.insert(self.Sliders, Slider)
@@ -544,7 +484,6 @@ function Library:AddDropdown(tab, name, options, callback)
     DropdownLabel.TextSize = 14
     DropdownLabel.Font = Enum.Font.SourceSans
     DropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
-    DropdownLabel.TextTransparency = 1
     DropdownLabel.Parent = DropdownContainer
     
     local DropdownButton = Instance.new("TextButton")
@@ -560,7 +499,6 @@ function Library:AddDropdown(tab, name, options, callback)
     DropdownButton.TextXAlignment = Enum.TextXAlignment.Left
     DropdownButton.TextTruncate = Enum.TextTruncate.AtEnd
     DropdownButton.ClipsDescendants = true
-    DropdownButton.ZIndex = 10
     DropdownButton.Parent = DropdownContainer
     
     local DropdownPadding = Instance.new("UIPadding")
@@ -580,7 +518,6 @@ function Library:AddDropdown(tab, name, options, callback)
     DropdownArrow.TextColor3 = Colors.Text
     DropdownArrow.TextSize = 12
     DropdownArrow.Font = Enum.Font.SourceSans
-    DropdownArrow.ZIndex = 11
     DropdownArrow.Parent = DropdownButton
     
     local DropdownMenu = Instance.new("Frame")
@@ -590,7 +527,7 @@ function Library:AddDropdown(tab, name, options, callback)
     DropdownMenu.BackgroundColor3 = Colors.TabBackground
     DropdownMenu.BorderSizePixel = 0
     DropdownMenu.Visible = false
-    DropdownMenu.ZIndex = 15
+    DropdownMenu.ZIndex = 5
     DropdownMenu.Parent = DropdownButton
     
     local UICorner2 = Instance.new("UICorner")
@@ -621,7 +558,7 @@ function Library:AddDropdown(tab, name, options, callback)
         OptionButton.TextSize = 14
         OptionButton.Font = Enum.Font.SourceSans
         OptionButton.TextXAlignment = Enum.TextXAlignment.Left
-        OptionButton.ZIndex = 16
+        OptionButton.ZIndex = 6
         OptionButton.Parent = DropdownMenu
         
         local OptionPadding = Instance.new("UIPadding")
@@ -632,17 +569,16 @@ function Library:AddDropdown(tab, name, options, callback)
             Dropdown.Value = option
             DropdownButton.Text = option
             DropdownMenu.Visible = false
-            DropdownArrow.Text = "▼"
             callback(option)
         end)
         
         -- Hover effect
         OptionButton.MouseEnter:Connect(function()
-            createTween(OptionButton, {BackgroundTransparency = 0.9}, 0.2)
+            OptionButton.BackgroundTransparency = 0.9
         end)
         
         OptionButton.MouseLeave:Connect(function()
-            createTween(OptionButton, {BackgroundTransparency = 1}, 0.2)
+            OptionButton.BackgroundTransparency = 1
         end)
     end
     
@@ -650,13 +586,12 @@ function Library:AddDropdown(tab, name, options, callback)
     DropdownButton.MouseButton1Click:Connect(function()
         DropdownMenu.Visible = not DropdownMenu.Visible
         DropdownArrow.Text = DropdownMenu.Visible and "▲" or "▼"
-        createTween(DropdownMenu, {BackgroundTransparency = DropdownMenu.Visible and 0 or 1}, 0.3)
     end)
     
     -- Close menu when clicking elsewhere
-    UserInputService.InputBegan:Connect(function(input)
+    game:GetService("UserInputService").InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            local mousePos = UserInputService:GetMouseLocation()
+            local mousePos = game:GetService("UserInputService"):GetMouseLocation()
             local buttonPos = DropdownButton.AbsolutePosition
             local buttonSize = DropdownButton.AbsoluteSize
             
@@ -667,9 +602,6 @@ function Library:AddDropdown(tab, name, options, callback)
             end
         end
     end)
-    
-    -- Fade-in animation
-    createTween(DropdownLabel, {TextTransparency = 0}, 0.5)
     
     -- Add to dropdowns table
     table.insert(self.Dropdowns, Dropdown)
@@ -689,11 +621,10 @@ function Library:Notify(title, text, duration, notificationType)
     local NotificationFrame = Instance.new("Frame")
     NotificationFrame.Name = "NotificationFrame"
     NotificationFrame.Size = UDim2.new(0, 280, 0, 80)
-    NotificationFrame.Position = UDim2.new(1, 20, 0, NOTIFICATION_OFFSET)
+    NotificationFrame.Position = UDim2.new(1, 20, 0.5, -40)
     NotificationFrame.BackgroundColor3 = Colors.NotificationBackground
     NotificationFrame.BorderColor3 = Colors.NotificationBorder
     NotificationFrame.BorderSizePixel = 1
-    NotificationFrame.BackgroundTransparency = 1
     NotificationFrame.Parent = NotificationGui
     
     local UICorner = Instance.new("UICorner")
@@ -710,7 +641,6 @@ function Library:Notify(title, text, duration, notificationType)
     TitleLabel.TextSize = 16
     TitleLabel.Font = Enum.Font.SourceSansBold
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    TitleLabel.TextTransparency = 1
     TitleLabel.Parent = NotificationFrame
     
     local MessageLabel = Instance.new("TextLabel")
@@ -725,10 +655,9 @@ function Library:Notify(title, text, duration, notificationType)
     MessageLabel.TextWrapped = true
     MessageLabel.TextXAlignment = Enum.TextXAlignment.Left
     MessageLabel.TextYAlignment = Enum.TextYAlignment.Top
-    MessageLabel.TextTransparency = 1
     MessageLabel.Parent = NotificationFrame
     
-    -- Type icon
+    -- Type icon (can customize based on notification type)
     local IconTypes = {
         Info = "ℹ️",
         Warning = "⚠️",
@@ -745,39 +674,20 @@ function Library:Notify(title, text, duration, notificationType)
     TypeIcon.TextColor3 = Colors.Text
     TypeIcon.TextSize = 18
     TypeIcon.Font = Enum.Font.SourceSansBold
-    TypeIcon.TextTransparency = 1
     TypeIcon.Parent = NotificationFrame
     
-    -- Stack notifications
-    table.insert(NotificationStack, NotificationFrame)
-    
-    local function updateNotificationPositions()
-        for i, frame in ipairs(NotificationStack) do
-            createTween(frame, {Position = UDim2.new(1, -300, 0, NOTIFICATION_OFFSET + (i - 1) * (80 + NOTIFICATION_SPACING))}, 0.3)
-        end
-    end
-    
     -- Animation in
-    createTween(NotificationFrame, {BackgroundTransparency = 0, Position = UDim2.new(1, -300, 0, NOTIFICATION_OFFSET)}, 0.5)
-    createTween(TitleLabel, {TextTransparency = 0}, 0.5)
-    createTween(MessageLabel, {TextTransparency = 0}, 0.5)
-    createTween(TypeIcon, {TextTransparency = 0}, 0.5)
-    updateNotificationPositions()
+    NotificationFrame:TweenPosition(UDim2.new(1, -300, 0.5, -40), "Out", "Quad", 0.5, true)
     
     -- Wait and animate out
     task.spawn(function()
         task.wait(duration)
         if NotificationFrame and NotificationFrame.Parent then
-            createTween(NotificationFrame, {BackgroundTransparency = 1, Position = UDim2.new(1, 20, 0, NotificationFrame.Position.Y.Offset)}, 0.5)
-            createTween(TitleLabel, {TextTransparency = 1}, 0.5)
-            createTween(MessageLabel, {TextTransparency = 1}, 0.5)
-            createTween(TypeIcon, {TextTransparency = 1}, 0.5).Completed:Connect(function()
-                if NotificationGui and NotificationGui.Parent then
-                    NotificationGui:Destroy()
-                    table.remove(NotificationStack, table.find(NotificationStack, NotificationFrame))
-                    updateNotificationPositions()
-                end
-            end)
+            NotificationFrame:TweenPosition(UDim2.new(1, 20, 0.5, -40), "Out", "Quad", 0.5, true)
+            task.wait(0.6)
+            if NotificationGui and NotificationGui.Parent then
+                NotificationGui:Destroy()
+            end
         end
     end)
 end
