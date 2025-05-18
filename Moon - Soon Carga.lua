@@ -1,3 +1,5 @@
+local rblx = "rbxassetid://"
+
 -- Custom UI Library for Game Menus
 local Library = {}
 Library.Tabs = {}
@@ -663,6 +665,11 @@ function Library:Notify(title, text, duration, notificationType)
         Warning = "⚠️",
         Error = "❌",
         Success = "✅"
+        Notify = ..rblx"6023426923"
+        Succes L = ..rblx"//60234269262"
+        Human = ..rblx"6022668945"
+        Block = ..rblx"6023565892"
+        Document = ..rblx"6022668888"
     }
     
     local TypeIcon = Instance.new("TextLabel")
